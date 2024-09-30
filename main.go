@@ -73,11 +73,13 @@ func processAccount(accountName string, credential *azidentity.DefaultAzureCrede
 
 	var totalSize int64
 	for result := range results {
-		fmt.Printf("Container: %s, Size: %d bytes\n", result.Name, result.Size)
+		sizeGB := bytesToGB(result.Size)
+		fmt.Printf("Container: %s, Size: %.2f GB\n", result.Name, sizeGB)
 		totalSize += result.Size
 	}
 
-	fmt.Printf("Total size for account %s: %d bytes\n", accountName, totalSize)
+	totalSizeGB := bytesToGB(totalSize)
+	fmt.Printf("Total size for account %s: %.2f GB\n", accountName, totalSizeGB)
 }
 
 type ContainerSize struct {
@@ -117,4 +119,8 @@ func getContainerSize(ctx context.Context, client *azblob.Client, containerName 
 	}
 
 	return totalSize, nil
+}
+
+func bytesToGB(bytes int64) float64 {
+	return float64(bytes) / (1024 * 1024 * 1024)
 }

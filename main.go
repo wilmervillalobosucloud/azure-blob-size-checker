@@ -36,7 +36,8 @@ func main() {
 }
 
 func processAccount(accountName string, credential *azidentity.DefaultAzureCredential) {
-	serviceClient, err := azblob.NewServiceClient(fmt.Sprintf("https://%s.blob.core.windows.net/", accountName), credential, nil)
+	serviceURL := fmt.Sprintf("https://%s.blob.core.windows.net/", accountName)
+	serviceClient, err := azblob.NewClient(serviceURL, credential, nil)
 	if err != nil {
 		log.Printf("Error creating service client for account %s: %v", accountName, err)
 		return
@@ -84,9 +85,9 @@ type ContainerSize struct {
 	Size int64
 }
 
-func listContainers(ctx context.Context, serviceClient *azblob.ServiceClient) ([]string, error) {
+func listContainers(ctx context.Context, client *azblob.Client) ([]string, error) {
 	var containers []string
-	pager := serviceClient.NewListContainersPager(&azblob.ListContainersOptions{})
+	pager := client.NewListContainersPager(&azblob.ListContainersOptions{})
 
 	for pager.More() {
 		resp, err := pager.NextPage(ctx)
@@ -100,11 +101,10 @@ func listContainers(ctx context.Context, serviceClient *azblob.ServiceClient) ([
 	return containers, nil
 }
 
-func getContainerSize(ctx context.Context, serviceClient *azblob.ServiceClient, containerName string) (int64, error) {
-	containerClient := serviceClient.NewContainerClient(containerName)
+func getContainerSize(ctx context.Context, client *azblob.Client, containerName string) (int64, error) {
 	var totalSize int64
 
-	pager := containerClient.NewListBlobsFlatPager(&azblob.ListBlobsFlatOptions{})
+	pager := client.NewListBlobsFlatPager(containerName, &azblob.ListBlobsFlatOptions{})
 
 	for pager.More() {
 		resp, err := pager.NextPage(ctx)

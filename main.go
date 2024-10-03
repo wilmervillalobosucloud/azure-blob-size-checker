@@ -52,7 +52,7 @@ func selectSubscription(credential *azidentity.DefaultAzureCredential) (string, 
 	}
 
 	pager := client.NewListPager(nil)
-	subscriptions := []armsubscriptions.Subscription{}
+	var subscriptions []*armsubscriptions.Subscription
 
 	for pager.More() {
 		page, err := pager.NextPage(context.Background())

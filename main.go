@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armsubscriptions"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 )
 
@@ -23,19 +24,60 @@ func main() {
 
 	storageAccounts := strings.Split(accounts, ",")
 
+	// Obtener credenciales de Azure
 	credential, err := azidentity.NewDefaultAzureCredential(nil)
 	if err != nil {
 		log.Fatalf("Error obtaining credentials: %v", err)
 	}
 
+	// Seleccionar suscripción
+	subscriptionID, err := selectSubscription(credential)
+	if err != nil {
+		log.Fatalf("Error selecting subscription: %v", err)
+	}
+
+	fmt.Printf("Using subscription: %s\n\n", subscriptionID)
+
 	for _, account := range storageAccounts {
 		fmt.Printf("Processing account: %s\n", account)
-		processAccount(account, credential)
+		processAccount(account, credential, subscriptionID)
 		fmt.Println()
 	}
 }
 
-func processAccount(accountName string, credential *azidentity.DefaultAzureCredential) {
+func selectSubscription(credential *azidentity.DefaultAzureCredential) (string, error) {
+	client, err := armsubscriptions.NewClient(credential, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create client: %v", err)
+	}
+
+	pager := client.NewListPager(nil)
+	subscriptions := []armsubscriptions.Subscription{}
+
+	for pager.More() {
+		page, err := pager.NextPage(context.Background())
+		if err != nil {
+			return "", fmt.Errorf("failed to get next page: %v", err)
+		}
+		subscriptions = append(subscriptions, page.Value...)
+	}
+
+	fmt.Println("Available subscriptions:")
+	for i, sub := range subscriptions {
+		fmt.Printf("%d. %s (%s)\n", i+1, *sub.DisplayName, *sub.SubscriptionID)
+	}
+
+	var choice int
+	fmt.Print("Enter the number of the subscription you want to use: ")
+	_, err = fmt.Scanf("%d", &choice)
+	if err != nil || choice < 1 || choice > len(subscriptions) {
+		return "", fmt.Errorf("invalid choice")
+	}
+
+	return *subscriptions[choice-1].SubscriptionID, nil
+}
+
+func processAccount(accountName string, credential *azidentity.DefaultAzureCredential, subscriptionID string) {
 	serviceURL := fmt.Sprintf("https://%s.blob.core.windows.net/", accountName)
 	serviceClient, err := azblob.NewClient(serviceURL, credential, nil)
 	if err != nil {
